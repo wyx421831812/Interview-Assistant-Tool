@@ -85,6 +85,7 @@ export async function mount(container) {
         <button class="btn sm" data-preset="openrouter">OpenRouter</button>
         <button class="btn sm" data-preset="groq">Groq</button>
         <button class="btn sm" data-preset="deepseek">DeepSeek</button>
+        <button class="btn sm" data-preset="volcengine">火山引擎（火山方舟）</button>
       </div>
       <div class="hint" style="margin-top:8px">点击可填入对应 Base URL（Key 仍需你自备）。</div>
     </div>
@@ -114,6 +115,7 @@ export async function mount(container) {
     openrouter: { base: 'https://openrouter.ai/api/v1', model: 'gpt-4o-mini', provider: 'openai-compatible' },
     groq: { base: 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant', provider: 'openai-compatible' },
     deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', provider: 'openai-compatible' },
+    volcengine: { base: 'https://ark.cn-beijing.volces.com/api/v3', model: 'ark-code-latest', provider: 'openai-compatible' },
   };
   container.querySelectorAll('[data-preset]').forEach(b => {
     b.addEventListener('click', () => {
