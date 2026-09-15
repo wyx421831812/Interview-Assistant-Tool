@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>面伴 · AI 面试辅助工具</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%233b6fe0'/%3E%3Ctext x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='sans-serif'%3E面%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="src/assets/styles.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-logo">面伴</span>
+        <span class="brand-sub">AI 面试辅助</span>
+      </div>
+      <nav class="nav">
+        <button class="nav-item" data-view="dashboard">
+          <span class="nav-icon">▦</span>总览
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-icon">⚙</span>设置
+        </button>
+        <button class="nav-item" data-view="profile">
+          <span class="nav-icon">▣</span>简历画像
+        </button>
+        <button class="nav-item" data-view="notes">
+          <span class="nav-icon">☰</span>笔记知识库
+        </button>
+        <button class="nav-item" data-view="interview">
+          <span class="nav-icon">◉</span>模拟面试
+        </button>
+        <button class="nav-item" data-view="review">
+          <span class="nav-icon">✪</span>面试复盘
+        </button>
+        <button class="nav-item" data-view="prediction">
+          <span class="nav-icon">◎</span>高频题预测
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="dot" id="cfg-dot"></span>
+        <span id="cfg-status">未配置</span>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="content" id="content">
+      <div class="placeholder">加载中…</div>
+    </main>
+  </div>
+
+  <!-- 轻提示 -->
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <!-- 确认弹窗 -->
+  <div class="modal-mask" id="confirm-mask" hidden>
+    <div class="modal">
+      <div class="modal-title" id="confirm-title">确认</div>
+      <div class="modal-body" id="confirm-body"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="confirm-cancel">取消</button>
+        <button class="btn primary" id="confirm-ok">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
