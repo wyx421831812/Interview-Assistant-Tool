@@ -163,6 +163,7 @@ canvas { width: 100%; height: auto; display: block; }
   position: fixed; inset: 0; background: rgba(15,20,30,.45);
   display: flex; align-items: center; justify-content: center; z-index: 1000;
 }
+.modal-mask[hidden] { display: none; }
 .modal { background: #fff; border-radius: 12px; padding: 22px; width: 420px; max-width: 92vw; box-shadow: 0 12px 40px rgba(0,0,0,.2); }
 .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
 .modal-body { color: var(--text-2); margin-bottom: 16px; }
