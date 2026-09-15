@@ -68,13 +68,19 @@ export async function mount(container) {
           <input class="input" id="f-apikey" type="password" placeholder="sk-…" value="${esc(s.apiKey)}" />
         </div>
       </div>
-      <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button class="btn" id="test-conn">测试连接</button>
         <span id="conn-result" class="hint"></span>
       </div>
       <div class="hint" style="margin-top:12px">
         <b>提示：</b>部分 LLM 服务（如火山方舟、智谱、通义）不支持浏览器端直接调用（CORS 限制）。
         可改用 OpenAI 官方 / OpenRouter / Groq 等支持 CORS 的服务，或通过本地代理中转。
+      </div>
+      <div class="hint" style="margin-top:8px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="use-proxy" />
+          使用本地代理（需运行 <code>python3 proxy.py</code>，默认端口 8787）
+        </label>
       </div>
     </div>
 
@@ -109,6 +115,36 @@ export async function mount(container) {
   const baseUrlInput = container.querySelector('#f-baseurl');
   const modelInput = container.querySelector('#f-model');
   const providerSel = container.querySelector('#f-provider');
+  const proxyCheck = container.querySelector('#use-proxy');
+
+  const PROXY_PREFIX = '/proxy/';
+
+  function currentIsProxied() {
+    return baseUrlInput.value.includes(PROXY_PREFIX)
+      || baseUrlInput.value.startsWith('http://localhost:')
+      || baseUrlInput.value.startsWith('http://127.0.0.1:');
+  }
+
+  // 初始化勾选状态
+  proxyCheck.checked = currentIsProxied();
+  proxyCheck.addEventListener('change', () => {
+    const val = baseUrlInput.value.trim();
+    if (!val) return;
+    if (proxyCheck.checked) {
+      // 包一层代理前缀；如果原本就是代理形式则不动
+      if (val.includes(PROXY_PREFIX)) return;
+      const port = 8787;
+      baseUrlInput.value = `http://localhost:${port}${PROXY_PREFIX}${val}`;
+      toast('已切换到本地代理', 'ok');
+    } else {
+      // 去掉代理前缀，还原真实地址
+      const idx = val.indexOf(PROXY_PREFIX);
+      if (idx >= 0) {
+        baseUrlInput.value = val.slice(idx + PROXY_PREFIX.length);
+        toast('已关闭本地代理', 'ok');
+      }
+    }
+  });
 
   const presets = {
     openai: { base: 'https://api.openai.com/v1', model: 'gpt-4o-mini', provider: 'openai-compatible' },
