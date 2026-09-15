@@ -72,6 +72,21 @@ export async function mount(container) {
         <button class="btn" id="test-conn">测试连接</button>
         <span id="conn-result" class="hint"></span>
       </div>
+      <div class="hint" style="margin-top:12px">
+        <b>提示：</b>部分 LLM 服务（如火山方舟、智谱、通义）不支持浏览器端直接调用（CORS 限制）。
+        可改用 OpenAI 官方 / OpenRouter / Groq 等支持 CORS 的服务，或通过本地代理中转。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">快速填充（示例）</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button class="btn sm" data-preset="openai">OpenAI 官方</button>
+        <button class="btn sm" data-preset="openrouter">OpenRouter</button>
+        <button class="btn sm" data-preset="groq">Groq</button>
+        <button class="btn sm" data-preset="deepseek">DeepSeek</button>
+      </div>
+      <div class="hint" style="margin-top:8px">点击可填入对应 Base URL（Key 仍需你自备）。</div>
     </div>
 
     <div class="card">
@@ -90,6 +105,26 @@ export async function mount(container) {
 
   const testBtn = container.querySelector('#test-conn');
   const result = container.querySelector('#conn-result');
+  const baseUrlInput = container.querySelector('#f-baseurl');
+  const modelInput = container.querySelector('#f-model');
+  const providerSel = container.querySelector('#f-provider');
+
+  const presets = {
+    openai: { base: 'https://api.openai.com/v1', model: 'gpt-4o-mini', provider: 'openai-compatible' },
+    openrouter: { base: 'https://openrouter.ai/api/v1', model: 'gpt-4o-mini', provider: 'openai-compatible' },
+    groq: { base: 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant', provider: 'openai-compatible' },
+    deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', provider: 'openai-compatible' },
+  };
+  container.querySelectorAll('[data-preset]').forEach(b => {
+    b.addEventListener('click', () => {
+      const p = presets[b.dataset.preset];
+      if (!p) return;
+      baseUrlInput.value = p.base;
+      modelInput.value = p.model;
+      providerSel.value = p.provider;
+      toast(`已填入 ${p.model}`, 'ok');
+    });
+  });
   testBtn.addEventListener('click', async () => {
     collect(true);
     result.textContent = '';

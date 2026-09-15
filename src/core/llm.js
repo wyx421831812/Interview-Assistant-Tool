@@ -95,7 +95,11 @@ export async function completeText(systemPrompt, messages, opts = {}) {
     try {
       resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
     } catch (e) {
-      lastErr = new LlmError('network', '网络异常，请检查网络连接');
+      const msg = (e && e.message) ? e.message : '';
+      const hint = msg && msg.toLowerCase().includes('cors')
+        ? '跨域（CORS）被拦截：该 API 可能不支持浏览器端直接调用，建议使用支持 CORS 的服务商或通过本地代理中转。'
+        : '请求失败，请检查 Base URL、网络连接与 CORS 限制。';
+      lastErr = new LlmError('network', hint + (msg ? `（${msg}）` : ''));
     }
     if (resp) {
       if (!resp.ok) throw mapHttpError(resp.status);
