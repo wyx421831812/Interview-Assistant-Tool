@@ -77,11 +77,14 @@ export async function mount(container) {
         可改用 OpenAI 官方 / OpenRouter / Groq 等支持 CORS 的服务，或通过本地代理中转。
       </div>
       <div class="hint" style="margin-top:8px">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="checkbox" id="use-proxy" />
-          使用本地代理（需运行 <code>python3 proxy.py</code>，默认端口 8787）
-        </label>
-      </div>
+         <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+           <input type="checkbox" id="use-proxy" />
+           使用本地代理中转（自动解决 CORS）
+         </label>
+         <div style="margin-top:4px;color:#6b7280">
+           需先在终端运行 <code>python3 proxy.py</code>（默认 8787 端口，当前页面是 localhost 则自动复用端口）。
+         </div>
+       </div>
     </div>
 
     <div class="card">
@@ -119,6 +122,14 @@ export async function mount(container) {
 
   const PROXY_PREFIX = '/proxy/';
 
+  function detectProxyBase() {
+    const { hostname, port, protocol } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${protocol}//${hostname}:${port || (protocol === 'https:' ? 443 : 80)}`;
+    }
+    return `http://localhost:8787`;
+  }
+
   function currentIsProxied() {
     return baseUrlInput.value.includes(PROXY_PREFIX)
       || baseUrlInput.value.startsWith('http://localhost:')
@@ -131,13 +142,11 @@ export async function mount(container) {
     const val = baseUrlInput.value.trim();
     if (!val) return;
     if (proxyCheck.checked) {
-      // 包一层代理前缀；如果原本就是代理形式则不动
       if (val.includes(PROXY_PREFIX)) return;
-      const port = 8787;
-      baseUrlInput.value = `http://localhost:${port}${PROXY_PREFIX}${val}`;
+      const base = detectProxyBase();
+      baseUrlInput.value = `${base}${PROXY_PREFIX}${val}`;
       toast('已切换到本地代理', 'ok');
     } else {
-      // 去掉代理前缀，还原真实地址
       const idx = val.indexOf(PROXY_PREFIX);
       if (idx >= 0) {
         baseUrlInput.value = val.slice(idx + PROXY_PREFIX.length);
