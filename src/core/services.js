@@ -23,18 +23,31 @@ function jobTargetOf(profile) {
 }
 
 // ==================== AI-1 简历解析 ====================
-export async function parseResume(text) {
-  if (!text || !text.trim()) throw new LlmError('config', '简历内容为空');
-  const sys = '你是资深技术面试官。请从简历中提取结构化面试画像，只输出 JSON。';
-  const user = [
-    '请根据以下简历文本，解析为 JSON，字段：',
+function resumeParsePrompt(resumeRef) {
+  return [
+    '请根据以下简历内容，解析为 JSON，字段：',
     '{ "projects": [{"name":"项目名","description":"一句话描述","technology":["技术栈"]}],',
     '  "techStack": ["技术栈列表"], "responsibilities": ["职责"], "highlights": ["亮点/成就"],',
     '  "jobTarget": "推断的目标岗位或填空" }',
     '若某字段无法判断则留空数组或空串。不要捏造简历中没有的内容。',
-    '\n简历文本：\n' + text,
+    '\n简历内容：\n' + resumeRef,
   ].join('\n');
-  const data = await completeJson(sys, [{ role: 'user', content: user }]);
+}
+
+// 文本简历解析
+export async function parseResume(text) {
+  if (!text || !text.trim()) throw new LlmError('config', '简历内容为空');
+  const sys = '你是资深技术面试官。请从简历中提取结构化面试画像，只输出 JSON。';
+  const data = await completeJson(sys, [{ role: 'user', content: resumeParsePrompt(text) }]);
+  return normalizeProfile(data);
+}
+
+// 图片/扫描件简历解析（parts 为 OpenAI 多模态内容块，含 image_url）
+export async function parseResumeFromParts(parts) {
+  if (!Array.isArray(parts) || !parts.length) throw new LlmError('config', '简历内容为空');
+  const sys = '你是资深技术面试官。请仔细阅读简历图片/页面中的文字，提取结构化面试画像，只输出 JSON。';
+  const content = [{ type: 'text', text: resumeParsePrompt('见下方文本/随附图片，请逐页识别后解析。') }, ...parts];
+  const data = await completeJson(sys, [{ role: 'user', content }]);
   return normalizeProfile(data);
 }
 

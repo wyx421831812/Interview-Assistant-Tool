@@ -1,0 +1,55 @@
+==========================================
+  面伴 · AI 面试辅助工具  使用说明
+==========================================
+
+【这是什么】
+一个纯本地运行的 AI 面试练习工具：简历画像、笔记知识库、
+模拟面试、面试复盘、高频题预测。数据只保存在你自己的浏览器
+里，不会上传；AI 能力需要你自己配置大模型 API Key。
+
+【快速开始（两种方式）】
+
+方式一：双击「启动面伴.bat」（推荐，功能完整）
+  1. 需要电脑装有 Python（python.org 下载安装即可）
+  2. 双击后自动打开 http://localhost:8787
+  3. 进入「设置」页配置 API Key 与模型
+
+方式二：直接双击「index.html」（无需安装任何东西）
+  1. 用 Chrome / Edge 打开即可使用
+  2. 注意：火山方舟等部分服务商不支持浏览器直连（CORS 限制），
+     遇到"请求失败/CORS"报错时，请改用方式一，或在设置里勾选
+     「使用本地代理中转」
+
+【配置 AI（设置页）】
+  1. 协议：一般选 OpenAI Chat Completions 兼容
+  2. 填入 Base URL、模型名、API Key（Key 只存本地浏览器）
+  3. 点「测试连接」确认通过
+
+常用示例：
+  - OpenAI 官方:  https://api.openai.com/v1
+  - DeepSeek:     https://api.deepseek.com/v1
+  - 火山方舟订阅版: https://ark.cn-beijing.volces.com/api/plan/v3
+    （Agent Plan 专属 Key 必须用此地址，且需勾选本地代理）
+    本地代理 Base URL 填：
+    http://localhost:8787/proxy/https://ark.cn-beijing.volces.com/api/plan/v3
+
+【简历导入】
+  支持粘贴文本，或上传 .txt / .md / .pdf / 图片（png、jpg、webp）。
+  - 文字版 PDF：自动提取文字
+  - 扫描版 PDF / 图片：需要配置支持视觉（多模态）的模型
+
+【常见问题】
+  Q: 提示 API Key 无效？
+  A: 检查 Key 是否复制完整、是否已过期；订阅版 Key 与普通 Key
+     的 Base URL 不同（见上方示例）。
+
+  Q: 简历 PDF 识别失败？
+  A: 图片识别需视觉模型（如 doubao-vision 系列、gpt-4o 等），
+     在设置页更换模型后重试。
+
+  Q: 数据存在哪里？
+  A: 全部存在本机浏览器（IndexedDB），换电脑/换浏览器不互通；
+     清理浏览器数据会清空记录，请注意。
+
+  Q: 想分享给朋友？
+  A: 把整个文件夹发给对方即可，使用方法相同。

@@ -4,6 +4,7 @@
  */
 import { idbList, idbPut, idbDelete, idbGet, uid, nowISO, fmtTime } from '../core/store.js';
 import { searchNotes } from '../core/services.js';
+import { extractDocText } from '../core/fileparse.js';
 import { esc, toast, confirmModal } from './ui.js';
 
 let profiles = [];
@@ -114,14 +115,18 @@ async function openEditor(container, note) {
     <div class="view-head">
       <div>
         <h1 class="view-title">${note ? '编辑笔记' : '新建笔记'}</h1>
-        <div class="view-desc">标题与正文为必填，所属项目与主题标签可选。</div>
+        <div class="view-desc">标题与正文为必填，所属项目与主题标签可选。支持导入 .txt/.md/.pdf/.docx 文档，自动填入正文。</div>
       </div>
     </div>
     <div class="card" style="max-width:760px">
       <label class="label">标题 *</label>
       <input class="input" id="n-title" value="${esc(n.title)}" placeholder="例如：Vue3 响应式原理" />
       <label class="label">正文 *</label>
-      <textarea class="textarea" id="n-content" style="min-height:200px" placeholder="输入面试笔记内容…">${esc(n.content)}</textarea>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+        <label class="btn sm">导入文档<input type="file" id="n-file" accept=".txt,.md,.text,.pdf,.docx" hidden /></label>
+        <span id="n-file-status" class="hint"></span>
+      </div>
+      <textarea class="textarea" id="n-content" style="min-height:200px" placeholder="输入面试笔记内容，或点击上方「导入文档」…">${esc(n.content)}</textarea>
       <div class="field-row">
         <div>
           <label class="label">所属项目</label>
@@ -143,6 +148,37 @@ async function openEditor(container, note) {
   `;
 
   container.querySelector('#n-cancel').addEventListener('click', () => mount(container));
+
+  const fileInput = container.querySelector('#n-file');
+  if (fileInput) {
+    fileInput.addEventListener('change', async e => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const status = container.querySelector('#n-file-status');
+      const contentEl = container.querySelector('#n-content');
+      status.textContent = '正在解析文档…';
+      status.style.color = '';
+      try {
+        const r = await extractDocText(f);
+        if (!r.text || !r.text.trim()) {
+          throw new Error('未能提取到文字（扫描版 PDF 需先 OCR）');
+        }
+        const prev = contentEl.value.trim();
+        contentEl.value = prev ? prev + '\n\n' + r.text : r.text;
+        const titleEl = container.querySelector('#n-title');
+        if (!titleEl.value.trim()) {
+          titleEl.value = f.name.replace(/\.[^.]+$/, '');
+        }
+        const meta = r.pageCount ? `（${r.pageCount} 页）` : '';
+        status.textContent = `已导入：${f.name}${meta}`;
+      } catch (err) {
+        status.textContent = '导入失败：' + (err && err.message ? err.message : '未知错误');
+        status.style.color = '#d5484d';
+      }
+    });
+  }
+
   container.querySelector('#n-save').addEventListener('click', async () => {
     const title = container.querySelector('#n-title').value.trim();
     const content = container.querySelector('#n-content').value.trim();

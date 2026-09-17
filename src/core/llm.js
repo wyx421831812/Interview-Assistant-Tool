@@ -23,6 +23,24 @@ function mapHttpError(status) {
   return new LlmError('network', `请求失败（HTTP ${status}），请检查网络与配置`);
 }
 
+// 将 OpenAI 风格的 image_url 内容块转为 Anthropic image 块
+function toAnthropicContent(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return content;
+  const out = [];
+  for (const part of content) {
+    if (part && part.type === 'image_url' && part.image_url && part.image_url.url) {
+      const m = String(part.image_url.url).match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+      if (m) {
+        out.push({ type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } });
+      }
+    } else if (part && part.type === 'text') {
+      out.push({ type: 'text', text: part.text });
+    }
+  }
+  return out;
+}
+
 // 构建请求体与鉴权头
 function buildRequest(settings, systemPrompt, userMsgs, jsonMode) {
   if (settings.apiProvider === 'anthropic') {
@@ -38,7 +56,9 @@ function buildRequest(settings, systemPrompt, userMsgs, jsonMode) {
       model: settings.model,
       max_tokens: 2048,
       temperature: 0.7,
-      messages: messages.filter(m => m.role !== 'system'),
+      messages: messages
+        .filter(m => m.role !== 'system')
+        .map(m => ({ role: m.role, content: toAnthropicContent(m.content) })),
       system: systemPrompt || undefined,
     };
     return { url: settings.baseUrl.endsWith('/') ? settings.baseUrl + 'v1/messages' : settings.baseUrl + '/v1/messages', headers, body };

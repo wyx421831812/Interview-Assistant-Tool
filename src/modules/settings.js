@@ -160,7 +160,7 @@ export async function mount(container) {
     openrouter: { base: 'https://openrouter.ai/api/v1', model: 'gpt-4o-mini', provider: 'openai-compatible' },
     groq: { base: 'https://api.groq.com/openai/v1', model: 'llama-3.1-8b-instant', provider: 'openai-compatible' },
     deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', provider: 'openai-compatible' },
-    volcengine: { base: 'https://ark.cn-beijing.volces.com/api/v3', model: 'ark-code-latest', provider: 'openai-compatible' },
+    volcengine: { base: 'https://ark.cn-beijing.volces.com/api/plan/v3', model: 'ark-code-latest', provider: 'openai-compatible' },
   };
   container.querySelectorAll('[data-preset]').forEach(b => {
     b.addEventListener('click', () => {
