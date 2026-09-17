@@ -37,3 +37,18 @@ fs.unlinkSync(path.join(dist, 'app.bundle.js'));
 
 const size = (fs.statSync(path.join(dist, 'index.html')).size / 1024).toFixed(1);
 console.log(`\n✅ 已生成 dist/index.html（${size} KB）— 单文件版，可直接分发`);
+
+// 3. 同步到发布目录 dist/package
+const pkg = path.join(dist, 'package');
+if (!fs.existsSync(pkg)) fs.mkdirSync(pkg);
+fs.copyFileSync(path.join(dist, 'index.html'), path.join(pkg, 'index.html'));
+console.log('✅ 已同步 dist/package/index.html');
+
+// 4. 压缩发布包 dist/面伴-AI面试辅助.zip（调用 PowerShell Compress-Archive）
+const zipPath = path.join(dist, '面伴-AI面试辅助.zip');
+execSync(
+  `powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path 'dist/package/*' -DestinationPath 'dist/面伴-AI面试辅助.zip' -Force"`,
+  { cwd: root, stdio: 'inherit' }
+);
+const zipKB = (fs.statSync(zipPath).size / 1024).toFixed(1);
+console.log(`✅ 已生成发布包 dist/面伴-AI面试辅助.zip（${zipKB} KB）`);

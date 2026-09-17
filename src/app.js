@@ -9,9 +9,13 @@ import * as notes from './modules/notes.js';
 import * as interview from './modules/interview.js';
 import * as review from './modules/review.js';
 import * as prediction from './modules/prediction.js';
+import * as resumeOptimize from './modules/resume-optimize.js';
 import { idbList, loadSettings } from './core/store.js';
 
-const MODULES = { dashboard, settings, profile, notes, interview, review, prediction };
+const MODULES = {
+  dashboard, settings, profile, notes, interview, review, prediction,
+  'resume-optimize': resumeOptimize,
+};
 
 const content = document.getElementById('content');
 let current = 'dashboard';

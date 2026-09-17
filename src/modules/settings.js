@@ -10,6 +10,7 @@ const MODES = [
   ['technical', '技术追问'],
   ['star', 'STAR 话术'],
   ['comprehensive', '综合'],
+  ['hr', '人事面试'],
 ];
 const PROVIDERS = [
   ['openai-compatible', 'OpenAI Chat Completions 兼容'],

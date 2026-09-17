@@ -32,7 +32,7 @@ function render(container, reports, wrong, sessions) {
     <div class="chart-row">
       <div class="chart-box">
         <div class="cb-title">能力雷达图（${latest ? '最近一场' : '暂无数据'}）</div>
-        ${latest ? radarSvg(latest.perDimensionAvg) : '<div class="empty-box">完成一场面试后自动生成。</div>'}
+        ${latest ? radarSvg(latest.perDimensionAvg, latest.mode) : '<div class="empty-box">完成一场面试后自动生成。</div>'}
       </div>
       <div class="chart-box">
         <div class="cb-title">进步趋势</div>
@@ -65,8 +65,8 @@ function render(container, reports, wrong, sessions) {
   `;
 }
 
-function radarSvg(avg) {
-  const labels = dimensionLabels();
+function radarSvg(avg, mode) {
+  const labels = dimensionLabels(mode);
   const size = 260, cx = size / 2, cy = size / 2, R = 90, N = labels.length;
   const pt = (i, r) => {
     const a = (Math.PI * 2 * i) / N - Math.PI / 2;

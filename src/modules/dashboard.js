@@ -41,6 +41,7 @@ export async function mount(container) {
       <div class="card-title">快速开始</div>
       <div style="display:flex;flex-wrap:wrap;gap:10px">
         <button class="btn" data-goto="profile">① 导入简历<br>生成画像</button>
+        <button class="btn" data-goto="resume-optimize">简历优化<br>打磨简历</button>
         <button class="btn" data-goto="notes">② 整理面试笔记</button>
         <button class="btn primary" data-goto="interview">③ 开始模拟面试</button>
       </div>

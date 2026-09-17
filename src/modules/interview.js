@@ -5,7 +5,7 @@
 import { idbList, idbPut, loadSettings, fmtTime } from '../core/store.js';
 import {
   startInterview, answerCurrentTurn, advanceTurn,
-  persistReport, modeLabel,
+  persistReport, modeLabel, dimensionLabels,
 } from '../core/services.js';
 import { esc, toast, loadingBtn } from './ui.js';
 
@@ -14,7 +14,10 @@ const MODES = [
   ['technical', '技术追问'],
   ['star', 'STAR 话术'],
   ['comprehensive', '综合'],
+  ['hr', '人事面试'],
 ];
+
+const HR_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '西安', '苏州', '长沙', '重庆', '天津', '合肥', '郑州', '厦门'];
 
 let session = null;
 let busy = false;
@@ -52,6 +55,24 @@ function renderStart(container) {
         <div class="tags" id="in-mode">
           ${MODES.map(([v, l]) => `<button class="tag" data-mode="${v}">${l}</button>`).join('')}
         </div>
+        <div id="hr-extra" hidden>
+          <label class="label">面试城市</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <select class="select" id="hr-city-sel" style="max-width:170px">
+              <option value="">— 选择城市 —</option>
+              ${HR_CITIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+              <option value="__custom">其他（手动输入）</option>
+            </select>
+            <input class="input" id="hr-city" placeholder="例如：杭州" style="max-width:180px" />
+          </div>
+          <label class="label">求职身份</label>
+          <div class="tags" id="hr-stage">
+            <button class="tag" data-stage="social">社招</button>
+            <button class="tag remove" data-stage="campus">应届/校招</button>
+          </div>
+          <label class="label">期望薪资范围（选填）</label>
+          <input class="input" id="hr-salary" placeholder="例如：15k-20k · 12薪" style="max-width:220px" />
+        </div>
         <label class="label">最大轮数</label>
         <input class="input" id="in-rounds" type="number" min="1" max="50" value="${loadSettings().maxRounds || 10}" style="max-width:120px" />
         <div style="margin-top:18px">
@@ -63,6 +84,7 @@ function renderStart(container) {
   if (profiles.length === 0) return;
 
   renderMode(container);
+  bindHrExtras(container);
   container.querySelector('#in-mode').querySelectorAll('[data-mode]').forEach(b => {
     b.addEventListener('click', () => renderMode(container, b.dataset.mode));
   });
@@ -73,6 +95,12 @@ function renderStart(container) {
       profileId: container.querySelector('#in-profile').value,
       maxRounds: Number(container.querySelector('#in-rounds').value) || 10,
     };
+    if (mode === 'hr') {
+      cfg.city = container.querySelector('#hr-city').value.trim();
+      cfg.stage = container.querySelector('#hr-stage')._stage || 'social';
+      cfg.salary = container.querySelector('#hr-salary').value.trim();
+      if (!cfg.city) { toast('人事面试请先选择或输入面试城市', 'err'); return; }
+    }
     const btn = container.querySelector('#in-start');
     loadingBtn(btn, true, '启动中…');
     try {
@@ -94,6 +122,43 @@ function renderMode(container, force) {
     const on = b.dataset.mode === mode;
     b.className = 'tag' + (on ? '' : ' remove');
   });
+  const hrExtra = container.querySelector('#hr-extra');
+  if (hrExtra) hrExtra.hidden = mode !== 'hr';
+}
+
+// 人事面试附加选项：城市选择与求职身份切换
+function bindHrExtras(container) {
+  const citySel = container.querySelector('#hr-city-sel');
+  const cityInput = container.querySelector('#hr-city');
+  if (citySel && cityInput) {
+    citySel.addEventListener('change', () => {
+      if (citySel.value === '__custom') {
+        cityInput.value = '';
+        cityInput.focus();
+      } else if (citySel.value) {
+        cityInput.value = citySel.value;
+      }
+    });
+  }
+  const stageBox = container.querySelector('#hr-stage');
+  if (stageBox) {
+    stageBox._stage = 'social';
+    stageBox.querySelectorAll('[data-stage]').forEach(b => {
+      b.addEventListener('click', () => {
+        stageBox._stage = b.dataset.stage;
+        stageBox.querySelectorAll('[data-stage]').forEach(x => {
+          x.className = 'tag' + (x.dataset.stage === stageBox._stage ? '' : ' remove');
+        });
+      });
+    });
+  }
+}
+
+function sessionDesc(s) {
+  const parts = [`目标岗位：${s.position || '未指定'}`];
+  if (s.mode === 'hr' && s.city) parts.push(`城市：${s.city}`);
+  parts.push(`第 ${s.turnCount}/${s.maxRounds} 轮`);
+  return parts.join(' · ');
 }
 
 function currentProfiles() {
@@ -105,7 +170,7 @@ function renderChat(container) {
     <div class="view-head">
       <div>
         <h1 class="view-title">模拟面试 · ${esc(modeLabel(session.mode))}</h1>
-        <div class="view-desc">目标岗位：${esc(session.position || '未指定')} · 第 ${session.turnCount}/${session.maxRounds} 轮</div>
+        <div class="view-desc">${esc(sessionDesc(session))}</div>
       </div>
       <button class="btn danger" id="chat-finish">结束面试</button>
     </div>
@@ -141,7 +206,7 @@ function renderLog(container) {
 }
 
 function renderReview(t) {
-  const dims = [['depth', '技术深度'], ['structure', '结构'], ['clarity', '条理'], ['fit', '契合度'], ['improvement', '改进']];
+  const dims = dimensionLabels(session.mode);
   return `
     <div class="msg assistant">
       <b>点评 · 总分 ${t.review.total}/5</b>
@@ -217,8 +282,7 @@ function bindChat(container) {
   }
 
   async function renderHeader(container) {
-    container.querySelector('.view-desc').textContent =
-      `目标岗位：${session.position || '未指定'} · 第 ${session.turnCount}/${session.maxRounds} 轮`;
+    container.querySelector('.view-desc').textContent = sessionDesc(session);
   }
 
   finishBtn.addEventListener('click', () => finishNow(container));

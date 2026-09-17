@@ -41,8 +41,8 @@ function toAnthropicContent(content) {
   return out;
 }
 
-// 构建请求体与鉴权头
-function buildRequest(settings, systemPrompt, userMsgs, jsonMode) {
+// 构建请求体与鉴权头（opts.maxTokens 可覆盖默认输出长度）
+function buildRequest(settings, systemPrompt, userMsgs, jsonMode, opts = {}) {
   if (settings.apiProvider === 'anthropic') {
     const messages = [];
     if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
@@ -54,7 +54,7 @@ function buildRequest(settings, systemPrompt, userMsgs, jsonMode) {
     };
     const body = {
       model: settings.model,
-      max_tokens: 2048,
+      max_tokens: opts.maxTokens || 2048,
       temperature: 0.7,
       messages: messages
         .filter(m => m.role !== 'system')
@@ -77,6 +77,7 @@ function buildRequest(settings, systemPrompt, userMsgs, jsonMode) {
     temperature: 0.7,
     messages,
   };
+  if (opts.maxTokens) body.max_tokens = opts.maxTokens;
   if (jsonMode) {
     body.response_format = { type: 'json_object' };
   }
@@ -106,7 +107,7 @@ export async function completeText(systemPrompt, messages, opts = {}) {
   if (!settings.baseUrl || !settings.model) throw new LlmError('config', '请完整填写 Base URL 与模型名称');
 
   const jsonMode = !!opts.json;
-  const { url, headers, body } = buildRequest(settings, systemPrompt, messages, jsonMode);
+  const { url, headers, body } = buildRequest(settings, systemPrompt, messages, jsonMode, opts);
 
   let lastErr = null;
   const retries = opts.retries ?? 1;

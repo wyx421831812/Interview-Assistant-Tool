@@ -3,7 +3,7 @@
  * 将 LLM 调用与本地数据结合，实现六大模块的业务逻辑。
  */
 import { completeJson, completeText, LlmError } from './llm.js';
-import { idbPut, idbGet, idbList, idbDelete, uid, nowISO, loadSettings } from './store.js';
+import { idbPut, idbGet, idbList, idbDelete, idbClear, uid, nowISO, loadSettings } from './store.js';
 
 const DIMENSIONS = [
   ['depth', '技术深度'],
@@ -13,8 +13,17 @@ const DIMENSIONS = [
   ['improvement', '改进空间'],
 ];
 
-export function dimensionLabels() {
-  return DIMENSIONS;
+// 人事（HR）面试点评维度
+const DIMENSIONS_HR = [
+  ['motivation', '求职动机'],
+  ['stability', '稳定性'],
+  ['clarity', '表达条理'],
+  ['fit', '城市/岗位匹配'],
+  ['salary', '薪资合理性'],
+];
+
+export function dimensionLabels(mode) {
+  return mode === 'hr' ? DIMENSIONS_HR : DIMENSIONS;
 }
 
 // 从设置或简历中取目标岗位
@@ -92,6 +101,7 @@ const MODE_LABEL = {
   technical: '技术追问',
   star: 'STAR 话术',
   comprehensive: '综合',
+  hr: '人事面试',
 };
 
 export function modeLabel(m) { return MODE_LABEL[m] || m; }
@@ -103,6 +113,9 @@ export async function startInterview(cfg) {
     mode: cfg.mode,
     profileId: cfg.profileId,
     position: jobTargetOf(profile),
+    city: cfg.city || '',
+    stage: cfg.stage || '',
+    salary: cfg.salary || '',
     profile,
     status: 'ongoing',
     createdAt: nowISO(),
@@ -119,15 +132,35 @@ export async function startInterview(cfg) {
 }
 
 async function nextQuestion(session, lastAnswer) {
-  const sys = '你是严格专业的面试官，根据候选人画像提问，只输出 JSON {"question":"..."}。不得询问画像之外的虚构项目。';
   const history = durationHistory(session);
-  const user = [
-    `面试模式：${MODE_LABEL[session.mode] || session.mode}`,
-    `目标岗位：${session.position || '未指定'}`,
-    `画像：\n${profileText(session.profile)}`,
-    history.length ? `\n已有对话：\n${history.join('\n')}` : '',
-    lastAnswer ? `\n候选人上一轮回答：${lastAnswer}\n请针对其中技术细节或薄弱点追问。` : '\n请提出第一轮面试问题。',
-  ].join('\n');
+  let sys;
+  let user;
+  if (session.mode === 'hr') {
+    // 人事面试：HR 人设 + 城市/身份/薪资上下文，围绕人事话题出题
+    sys = '你是一位经验丰富的人事（HR）面试官，正在进行 HR 面/综合面。只输出 JSON {"question":"..."}。';
+    user = [
+      '面试模式：人事面试',
+      session.city ? `面试城市：${session.city}` : '',
+      session.stage ? `求职身份：${session.stage === 'campus' ? '应届生/校招' : '社招'}` : '',
+      session.salary ? `期望薪资范围：${session.salary}` : '',
+      `目标岗位：${session.position || '未指定'}`,
+      `画像：\n${profileText(session.profile)}`,
+      history.length ? `\n已有对话：\n${history.join('\n')}` : '',
+      lastAnswer
+        ? `\n候选人上一轮回答：${lastAnswer}\n请从人事视角针对其中含糊、矛盾或值得深挖的点追问。`
+        : '\n请提出第一轮人事面试问题，建议从求职动机切入（如为什么选择这个城市、为什么考虑我们）。',
+      '出题要求：围绕求职动机、城市选择原因、异地工作意愿与稳定性、离职原因、职业规划、团队协作与沟通、抗压能力、薪资期望等人事话题；不要问技术细节；语气自然、贴近真实 HR 面。',
+    ].filter(Boolean).join('\n');
+  } else {
+    sys = '你是严格专业的面试官，根据候选人画像提问，只输出 JSON {"question":"..."}。不得询问画像之外的虚构项目。';
+    user = [
+      `面试模式：${MODE_LABEL[session.mode] || session.mode}`,
+      `目标岗位：${session.position || '未指定'}`,
+      `画像：\n${profileText(session.profile)}`,
+      history.length ? `\n已有对话：\n${history.join('\n')}` : '',
+      lastAnswer ? `\n候选人上一轮回答：${lastAnswer}\n请针对其中技术细节或薄弱点追问。` : '\n请提出第一轮面试问题。',
+    ].join('\n');
+  }
   const data = await completeJson(sys, [{ role: 'user', content: user }]);
   return String(data.question || '').trim();
 }
@@ -169,19 +202,24 @@ export async function advanceTurn(session) {
 
 // ==================== AI-5 回答点评 ====================
 export async function reviewAnswer(session, turn) {
-  const sys = '你是资深面试官与表达教练。请对候选人回答进行结构化点评，只输出 JSON。';
-  const dims = DIMENSIONS.map(([k, l]) => `"${k}": 0-5 分`).join(', ');
+  const isHr = session.mode === 'hr';
+  const dimsDef = dimensionLabels(session.mode);
+  const sys = isHr
+    ? '你是资深 HR 面试官与沟通教练。请从人事视角对候选人回答进行结构化点评，只输出 JSON。'
+    : '你是资深面试官与表达教练。请对候选人回答进行结构化点评，只输出 JSON。';
+  const dims = dimsDef.map(([k, l]) => `"${k}": 0-5 分`).join(', ');
   const user = [
     `问题：${turn.question}`,
     `候选人回答：${turn.answer}`,
     `画像：\n${profileText(session.profile)}`,
-    `请输出 JSON：{"scores": {${dims}}, "total": 总分数字, "comment": "一段总体评价", "improvedAnswer": "改进版回答示范（STAR 结构）"}`,
-  ].join('\n');
+    isHr && session.city ? `面试城市：${session.city}` : '',
+    `请输出 JSON：{"scores": {${dims}}, "total": 总分数字, "comment": "一段总体评价", "improvedAnswer": "改进版回答示范${isHr ? '（真诚自然、符合 HR 面语境）' : '（STAR 结构）'}"}`,
+  ].filter(Boolean).join('\n');
   const data = await completeJson(sys, [{ role: 'user', content: user }]);
   const scores = {};
   let sum = 0;
   let count = 0;
-  for (const [k] of DIMENSIONS) {
+  for (const [k] of dimsDef) {
     const v = Number(data.scores && data.scores[k]);
     const sv = isNaN(v) ? 0 : Math.max(0, Math.min(5, v));
     scores[k] = sv;
@@ -201,13 +239,14 @@ export async function reviewAnswer(session, turn) {
 // ==================== 面试复盘（生成报告） ====================
 export function generateReport(session) {
   const reviews = (session.turns || []).filter(t => t.review && t.review.total != null);
+  const dimsDef = dimensionLabels(session.mode);
   const perDim = {};
   let sumTotal = 0;
   const wrong = [];
-  for (const [k] of DIMENSIONS) perDim[k] = [];
+  for (const [k] of dimsDef) perDim[k] = [];
   for (const t of reviews) {
     sumTotal += t.review.total;
-    for (const [k, label] of DIMENSIONS) {
+    for (const [k, label] of dimsDef) {
       const v = t.review.scores[k];
       if (v != null) (perDim[k] = perDim[k] || []).push(v);
     }
@@ -215,7 +254,7 @@ export function generateReport(session) {
   }
   const dimAvgs = {};
   const trendPoints = reviews.map(t => t.review.total);
-  for (const [k] of DIMENSIONS) {
+  for (const [k] of dimsDef) {
     const list = perDim[k] || [];
     dimAvgs[k] = list.length ? Number((list.reduce((a, b) => a + b, 0) / list.length).toFixed(1)) : 0;
   }
@@ -293,6 +332,83 @@ export async function predictQuestions() {
   await idbClear('predictions');
   for (const it of items) await idbPut('predictions', it);
   return items;
+}
+
+// ==================== AI-7 简历优化 ====================
+const RESUME_OPT_INPUT_LIMIT = 12000; // 简历原文最大注入长度，控制 token
+
+function resumeOptimizePrompt(resumeText, jobTarget) {
+  return [
+    '请对以下简历进行优化分析，输出 JSON，字段：',
+    '{',
+    '  "overallScore": 0-100 的整数，简历总体评分,',
+    '  "summary": "总体评价，100 字以内，指出最关键的 3 个问题与最大优势",',
+    '  "formatIssues": [{"issue": "格式/结构问题", "suggestion": "修改建议"}],',
+    '  "wordingIssues": [{"original": "原文片段", "problem": "存在的问题", "suggestion": "改写建议"}],',
+    '  "projectRewrites": [{"name": "项目名", "original": "原项目描述", "rewritten": "优化后的项目描述（突出量化成果与亮点）", "reason": "优化理由"}],',
+    '  "strengths": ["可进一步挖掘或放大的亮点，以及内容补强建议"],',
+    '  "optimizedResume": "优化后的完整简历文本（保留真实信息，润色措辞与结构，纯文本排版）"',
+    '}',
+    '要求：不捏造简历中不存在的经历与数据；如需补充量化数字，用「需本人确认」标注。',
+    jobTarget ? `目标岗位：${jobTarget}，请针对该岗位优化关键词与内容侧重。` : '目标岗位：未指定，按通用最佳实践优化。',
+    `\n简历原文：\n${resumeText.slice(0, RESUME_OPT_INPUT_LIMIT)}`,
+  ].join('\n');
+}
+
+export async function optimizeResume(rawText, { jobTarget } = {}) {
+  if (!rawText || !rawText.trim()) throw new LlmError('config', '简历内容为空，请先上传文件或粘贴文本');
+  const sys = '你是资深 HR 与简历优化专家，熟悉 ATS 筛选规则与招聘方阅读习惯。只输出 JSON。';
+  const data = await completeJson(sys, [{ role: 'user', content: resumeOptimizePrompt(rawText, jobTarget) }], { maxTokens: 8000 });
+  return normalizeResumeOpt(data);
+}
+
+function normalizeResumeOpt(d) {
+  d = d || {};
+  return {
+    overallScore: Math.max(0, Math.min(100, Math.round(Number(d.overallScore) || 0))),
+    summary: String(d.summary || ''),
+    formatIssues: optItems(d.formatIssues, ['issue', 'suggestion']),
+    wordingIssues: optItems(d.wordingIssues, ['original', 'problem', 'suggestion']),
+    projectRewrites: optItems(d.projectRewrites, ['name', 'original', 'rewritten', 'reason']),
+    strengths: arr(d.strengths),
+    optimizedResume: String(d.optimizedResume || ''),
+  };
+}
+
+function optItems(v, keys) {
+  return (Array.isArray(v) ? v : []).filter(it => it && typeof it === 'object').map(it => {
+    const o = {};
+    for (const k of keys) o[k] = String(it[k] || '').trim();
+    return o;
+  }).filter(o => keys.some(k => o[k]));
+}
+
+// 保存优化记录（简历原文与报告分离存储）
+export async function saveResumeOptimization(rawText, report, meta = {}) {
+  const resumeId = uid();
+  await idbPut('resumes', {
+    id: resumeId,
+    text: rawText,
+    fileName: meta.fileName || '',
+    kind: meta.kind || '',
+    createdAt: nowISO(),
+  });
+  const rec = {
+    id: uid(),
+    resumeId,
+    jobTarget: meta.jobTarget || '',
+    report,
+    createdAt: nowISO(),
+  };
+  await idbPut('resumeOpts', rec);
+  return rec;
+}
+
+export async function listResumeOptimizations() {
+  const [opts, resumes] = await Promise.all([idbList('resumeOpts'), idbList('resumes')]);
+  return opts
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .map(o => ({ ...o, resume: resumes.find(r => r.id === o.resumeId) || null }));
 }
 
 function profileText(p) {

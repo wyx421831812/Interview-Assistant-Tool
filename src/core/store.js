@@ -34,7 +34,7 @@ export function saveSettings(patch) {
 
 // ---------- IndexedDB ----------
 const DB_NAME = 'mianb.db';
-const DB_VER = 1;
+const DB_VER = 2;
 
 const openDB = (() => {
   let promise = null;
@@ -44,7 +44,7 @@ const openDB = (() => {
       const req = indexedDB.open(DB_NAME, DB_VER);
       req.onupgradeneeded = () => {
         const db = req.result;
-        const stores = ['profile', 'notes', 'sessions', 'turns', 'reports', 'predictions'];
+        const stores = ['profile', 'notes', 'sessions', 'turns', 'reports', 'predictions', 'resumes', 'resumeOpts'];
         for (const s of stores) {
           if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
         }
