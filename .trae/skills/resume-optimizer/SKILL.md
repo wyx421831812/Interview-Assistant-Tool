@@ -51,6 +51,19 @@ python3 .trae/skills/resume-optimizer/scripts/extract_resume.py <pdf路径> -o /
 3. **修改对照表**：表格列出 原文 → 优化后 → 修改理由
 4. **岗位定制建议**（可选，仅在用户提供 JD 时）：关键词对齐情况与定制方向
 
+### 第 5 步：生成 PDF
+
+把「优化后简历」单独写成受限 Markdown（只含简历本体，不含诊断/对照表），默认存 `/tmp/resume-final.md`，然后构建 PDF：
+
+```bash
+python3 .trae/skills/resume-optimizer/scripts/build_pdf.py /tmp/resume-final.md \
+  -o "docs/<姓名>-<岗位>-优化后.pdf" --title "<姓名>-<岗位>"
+```
+
+受限 Markdown 仅支持：`#`（姓名大标题）、`##`（分区标题）、`###`（条目标题）、`>`（联系方式/意向行）、`-` 要点、`1.` 编号、`**加粗**`。**不支持**表格、图片、HTML、代码块。`【补充：…】` 占位符会自动渲染为加粗。
+
+生成后做一次回读校验（用 extract_resume.py 抽取 PDF 文本，确认姓名、意向、关键技能存在）。字体以 CIDFontType2（TTF）嵌入，pdfminer / pdfium / pypdf 三类解析器均兼容，ATS 可正常读取。
+
 ## 硬性规则
 
 - **严禁编造**：不得虚构经历、职级、数字、技术细节。只能重组、澄清、突出用户已有内容；缺数据一律用占位符提示补充
@@ -60,4 +73,6 @@ python3 .trae/skills/resume-optimizer/scripts/extract_resume.py <pdf路径> -o /
 
 ## 依赖说明
 
-提取脚本依赖 `pdfplumber` 或 `pypdf`（任一即可），沙箱内已预装；若在未安装的环境运行，先执行 `pip install pypdf`。
+- 提取脚本依赖 `pdfplumber` 或 `pypdf`（任一即可），沙箱内已预装；若在未安装的环境运行，先执行 `pip install pypdf`
+- PDF 构建依赖 `fpdf2` 与 Noto Sans SC 字体：首次运行 `build_pdf.py` 时会自动调用 `prepare_fonts.py` 下载 OTF 并转换为 TTF（GB2312 全字集 + ASCII + 常用标点子集，覆盖常见生僻姓名用字），缓存于 `~/.cache/resume-skill-fonts/`
+- 离线环境可手动放置 `NotoSansSC-{Regular,Bold}.ttf/.otf` 到该缓存目录，或用 `RESUME_FONT_DIR` 指定路径
